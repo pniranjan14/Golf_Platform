@@ -17,30 +17,43 @@ import { GlowButton } from '../components/ui/GlowButton';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary';
 import { cn } from '../lib/utils';
 import { toast } from '../hooks/useToast';
+import { useDashboardData } from '../hooks/useDashboardData';
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
+  const { profile, currentScoresCount, totalEntries, totalWinnings, loading, refresh } = useDashboardData();
+
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-violet-500 border-t-transparent" />
+          <p className="text-[#4a4870] font-black uppercase tracking-widest animate-pulse">Syncing Mission Data...</p>
+        </div>
+      </div>
+    );
+  }
 
   const stats = [
     { 
       label: 'Subscription Status', 
-      value: 'Active', 
+      value: profile?.role === 'admin' ? 'Master' : 'Elite', 
       icon: CreditCard, 
       color: 'bg-emerald-500/10 text-emerald-400',
       glow: 'shadow-[0_0_20px_rgba(16,185,129,0.2)]',
-      sub: 'Renews May 12, 2026'
+      sub: profile?.role === 'admin' ? 'Full System Access' : 'Monthly Member'
     },
     { 
       label: 'Current Scores', 
-      value: '4/5', 
+      value: `${currentScoresCount}/5`, 
       icon: TrendingUp, 
       color: 'bg-violet-500/10 text-violet-400',
       glow: 'shadow-[0_0_20px_rgba(124,58,237,0.2)]',
-      sub: '+1 entry needed'
+      sub: currentScoresCount < 5 ? `+${5 - currentScoresCount} entries needed` : 'Monthly quota met'
     },
     { 
       label: 'Draws Entered', 
-      value: '12', 
+      value: totalEntries.toString(), 
       icon: Trophy, 
       color: 'bg-amber-500/10 text-amber-400',
       glow: 'shadow-[0_0_20px_rgba(217,119,6,0.2)]',
@@ -48,11 +61,11 @@ const DashboardPage: React.FC = () => {
     },
     { 
       label: 'Total Winnings', 
-      value: '£450', 
+      value: totalWinnings > 0 ? `£${totalWinnings}` : '£0', 
       icon: CheckCircle2, 
       color: 'bg-rose-500/10 text-rose-400',
       glow: 'shadow-[0_0_20px_rgba(225,29,72,0.2)]',
-      sub: 'Sent to your wallet'
+      sub: totalWinnings > 0 ? 'Sent to your wallet' : 'Awaiting first victory'
     },
   ];
 
@@ -74,9 +87,9 @@ const DashboardPage: React.FC = () => {
             DASHBOARD <span className="text-violet-500">OVERVIEW</span>
           </h1>
           <p className="text-[#9b99c4] mt-2 font-medium flex items-center gap-2">
-            <span className="opacity-50">Welcome back,</span> {user?.email?.split('@')[0]}
+            <span className="opacity-50">Welcome back,</span> {profile?.full_name || user?.email?.split('@')[0]}
             <span className="w-1 h-1 rounded-full bg-[#4a4870]" />
-            <span className="text-violet-400">Elite Member</span>
+            <span className="text-violet-400">{profile?.role === 'admin' ? 'Master Admin' : 'Elite Member'}</span>
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -153,7 +166,7 @@ const DashboardPage: React.FC = () => {
                 <GlowButton label="Add Score" variant="ghost" className="py-2 px-4 text-xs font-black uppercase" />
               </div>
               <div className="p-2">
-                <ScoreManager />
+                <ScoreManager onScoreAdded={refresh} />
               </div>
             </GlassCard>
           </div>

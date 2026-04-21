@@ -18,7 +18,11 @@ import { GlowButton } from '../ui/GlowButton';
 import { GlassCard } from '../ui/GlassCard';
 import { toast } from '../../hooks/useToast';
 
-export const ScoreManager: React.FC = () => {
+interface ScoreManagerProps {
+  onScoreAdded?: () => void;
+}
+
+export const ScoreManager: React.FC<ScoreManagerProps> = ({ onScoreAdded }) => {
   const { user } = useAuth();
   const [scores, setScores] = useState<Score[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,6 +95,7 @@ export const ScoreManager: React.FC = () => {
 
       toast.success('Score Recorded', `Round of ${scoreNum} successfully added.`);
       await fetchScores();
+      if (onScoreAdded) onScoreAdded();
       setIsAdding(false);
       setNewScore('');
     } catch (err: any) {
@@ -108,6 +113,7 @@ export const ScoreManager: React.FC = () => {
       if (error) throw error;
       toast.success('Score Removed', 'The round has been deleted from your history.');
       setScores(scores.filter(s => s.id !== id));
+      if (onScoreAdded) onScoreAdded();
     } catch (err: any) {
       toast.error('Delete Failed', err.message);
     }
