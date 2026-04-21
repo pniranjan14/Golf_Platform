@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #0f0f1a;
+  --bg-card: #13131f;
+  --bg-card-hover: #1a1a2e;
+  --bg-glass: rgba(255, 255, 255, 0.03);
+
+  --accent-violet: #7c3aed;
+  --accent-violet-light: #8b5cf6;
+  --accent-violet-glow: rgba(124, 58, 237, 0.3);
+
+  --accent-emerald: #059669;
+  --accent-emerald-light: #10b981;
+  --accent-emerald-glow: rgba(5, 150, 105, 0.3);
+
+  --accent-rose: #e11d48;
+  --accent-rose-light: #f43f5e;
+  --accent-rose-glow: rgba(225, 29, 72, 0.3);
+
+  --accent-amber: #d97706;
+  --accent-amber-light: #f59e0b;
+
+  --text-primary: #f1f0ff;
+  --text-secondary: #9b99c4;
+  --text-muted: #4a4870;
+
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-glow: rgba(124, 58, 237, 0.4);
+}
+
+@theme {
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+  
+  --color-card: var(--bg-card);
+  --color-card-foreground: var(--text-primary);
+  
+  --color-popover: var(--bg-card);
+  --color-popover-foreground: var(--text-primary);
+  
+  --color-primary: var(--accent-violet);
+  --color-primary-foreground: var(--text-primary);
+  
+  --color-secondary: var(--bg-secondary);
+  --color-secondary-foreground: var(--text-secondary);
+  
+  --color-muted: var(--text-muted);
+  --color-muted-foreground: var(--text-muted);
+  
+  --color-accent: var(--accent-emerald);
+  --color-accent-foreground: var(--text-primary);
+  
+  --color-destructive: var(--accent-rose);
+  --color-destructive-foreground: var(--text-primary);
+  
+  --color-border: var(--border-subtle);
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    @apply border-border;
+  }
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, sans-serif;
+    overflow-x: hidden;
+    @apply antialiased;
+  }
+}
+
+/* Glowing scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--accent-violet); border-radius: 3px; }
+
+/* Selection color */
+::selection { background: var(--accent-violet-glow); color: var(--text-primary); }
+
+/* Smooth scroll */
+html { scroll-behavior: smooth; }
+
+/* Dot grid background */
+.dot-grid {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+  border-radius: 8px;
+}
+
+/* Ticker Marquee */
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.ticker-scroll {
+  animation: ticker 30s linear infinite;
+}
+
+/* Monospace Numbers */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
