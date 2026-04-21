@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { toast } from '../hooks/useToast';
 
 const SignupPage: React.FC = () => {
-  const { signUp } = useAuth();
+  const { signUp, signOut } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,7 +20,12 @@ const SignupPage: React.FC = () => {
     setLoading(true);
     try {
       await signUp(email, password);
-      navigate('/dashboard');
+      // Explicitly sign out to ensure they must log in manually, 
+      // especially if email confirmation is disabled in Supabase.
+      await signOut();
+      
+      toast.success('Account Created', 'Your account has been initialized. Please log in with your credentials.');
+      navigate('/login');
     } catch (error) {
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : 'Registration failed. Please check your credentials.';
