@@ -16,6 +16,8 @@ import CharitiesPage from './pages/Charities'
 import PricingPage from './pages/Pricing'
 import ResultsPage from './pages/Results'
 import AdminLoginPage from './pages/AdminLogin'
+import SettingsPage from './pages/Settings'
+import ScoresPage from './pages/Scores'
 
 const App: React.FC = () => {
   const location = useLocation();
@@ -36,6 +38,8 @@ const App: React.FC = () => {
           {/* Protected Member Routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/dashboard/scores" element={<ScoresPage />} />
+            <Route path="/dashboard/settings" element={<SettingsPage />} />
           </Route>
 
           {/* Master Admin Routes (Strictly Isolated) */}
