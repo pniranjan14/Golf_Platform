@@ -22,7 +22,8 @@ const LoginPage: React.FC = () => {
       navigate('/dashboard');
     } catch (error) {
       console.error(error);
-      toast.error('Invalid credentials. Access denied.');
+      const errorMessage = error instanceof Error ? error.message : 'Invalid credentials. Access denied.';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

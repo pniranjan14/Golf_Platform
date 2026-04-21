@@ -20,11 +20,11 @@ const SignupPage: React.FC = () => {
     setLoading(true);
     try {
       await signUp(email, password);
-      // In a real app, you might want to create a profile here
       navigate('/dashboard');
     } catch (error) {
       console.error(error);
-      toast.error('Registration failed. Please check your credentials.');
+      const errorMessage = error instanceof Error ? error.message : 'Registration failed. Please check your credentials.';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
