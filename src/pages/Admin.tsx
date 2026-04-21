@@ -8,37 +8,108 @@ import {
   PlayCircle, 
   Eye, 
   Database, 
-  Lock, 
   Activity,
   Download,
   CheckCircle2,
   Clock,
-  Terminal
+  Terminal,
+  ShieldAlert
 } from 'lucide-react';
 import { GlassCard } from '../components/ui/GlassCard';
 import { StatBadge } from '../components/ui/StatBadge';
 import { GlowButton } from '../components/ui/GlowButton';
 import { cn } from '../lib/utils';
 import { toast } from '../hooks/useToast';
+import { useAdminData } from '../hooks/useAdminData';
+import { supabase } from '../lib/supabase';
 
 const AdminPage: React.FC = () => {
+  const { users, scores, refreshData } = useAdminData();
   const [activeTab, setActiveTab] = useState<'draws' | 'users' | 'winners'>('draws');
   const [simulationResult, setSimulationResult] = useState<any>(null);
   const [isSimulating, setIsSimulating] = useState(false);
 
   const runSimulation = () => {
+    if (scores.length === 0) {
+      toast.error('Simulation Failed', 'No verified scores found in the system to calculate entropy.');
+      return;
+    }
+
     setIsSimulating(true);
     setSimulationResult(null);
     
     setTimeout(() => {
+      // Real logic: Group scores by user to pick winners
+      const eligibleUsers = Array.from(new Set(scores.map(s => s.user_id)));
+      const winnerPool = [...eligibleUsers].sort(() => 0.5 - Math.random());
+      
+      const winners = {
+        match5: Math.min(1, winnerPool.length),
+        match4: Math.min(3, Math.max(0, winnerPool.length - 1)),
+        match3: Math.min(18, Math.max(0, winnerPool.length - 4))
+      };
+
+      const totalWinners = winners.match5 + winners.match4 + winners.match3;
+      
       setSimulationResult({
-        winners: { match5: 1, match4: 3, match3: 18 },
+        winners,
         pool: { match5: 42500, match4: 12450, match3: 8420 },
-        totalPayout: 63370
+        totalPayout: totalWinners > 0 ? (winners.match5 * 42500 + winners.match4 * 4150 + winners.match3 * 467) : 0
       });
+      
       setIsSimulating(false);
-      toast.success('Simulation Complete', 'Entropy calculation reached 100% consensus.');
+      toast.success('Simulation Complete', `Entropy calculation focused on ${eligibleUsers.length} eligible participants.`);
     }, 2000);
+  };
+
+  const publishDraw = async () => {
+    if (!simulationResult) {
+      toast.error('Publish Failed', 'No valid simulation data found. Please run a simulation first.');
+      return;
+    }
+
+    try {
+      const monthInput = (document.querySelector('input[type="month"]') as HTMLInputElement)?.value;
+      if (!monthInput) {
+        toast.error('Missing Data', 'Please select a scheduling month before publishing.');
+        return;
+      }
+
+      const [year, month] = monthInput.split('-');
+      const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'long' }).toUpperCase();
+
+      const { error } = await supabase.from('draws').insert({
+        month: monthName,
+        draw_date: new Date().toISOString(),
+        winning_score: Math.floor(Math.random() * 10) + 65, // Simulated winning score
+        winners_count: simulationResult.winners.match5 + simulationResult.winners.match4 + simulationResult.winners.match3,
+        total_prize_pool: simulationResult.totalPayout,
+        participants_count: users.length,
+        status: 'published'
+      });
+
+      if (error) throw error;
+
+      toast.success('System Update', `Official ${monthName} draw results have been committed to the public ledger.`);
+      setSimulationResult(null);
+      refreshData();
+    } catch (err) {
+      console.error('Publish Error:', err);
+      toast.error('Critical Failure', 'Database integrity error or network timeout during publication.');
+    }
+  };
+
+  const deleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to delete this user? This action is irreversible.')) return;
+    
+    try {
+      const { error } = await supabase.from('profiles').delete().eq('id', userId);
+      if (error) throw error;
+      toast.success('Member Decommissioned', 'User record has been purged from the primary vault.');
+      refreshData();
+    } catch (err) {
+      toast.error('Action Failed', 'Integrity protection preventing user deletion.');
+    }
   };
 
   const tabs = [
@@ -139,11 +210,11 @@ const AdminPage: React.FC = () => {
                     <div className="p-6 rounded-2xl bg-violet-600/5 border border-violet-500/10 space-y-4">
                        <div className="flex justify-between text-[10px] font-black uppercase text-[#4a4870]">
                          <span>Eligible Members</span>
-                         <span className="text-white">1,245 Members</span>
+                         <span className="text-white">{users.length} Members</span>
                        </div>
                        <div className="flex justify-between text-[10px] font-black uppercase text-[#4a4870]">
                          <span>Verified Score Pool</span>
-                         <span className="text-white">6,225 Entries</span>
+                         <span className="text-white">{scores.length} Entries</span>
                        </div>
                     </div>
                   </div>
@@ -173,7 +244,7 @@ const AdminPage: React.FC = () => {
                       label="PUBLISH OFFICIAL DRAW" 
                       className="w-full py-5" 
                       variant="primary" 
-                      onClick={() => toast.info('Publishing Restricted', 'This action requires Tier-3 multisig authorization.')}
+                      onClick={publishDraw}
                     />
                   </div>
                 </GlassCard>
@@ -270,7 +341,7 @@ const AdminPage: React.FC = () => {
                       <thead className="text-[10px] uppercase font-black tracking-widest text-[#4a4870] border-b border-white/5">
                          <tr>
                             <th className="px-10 py-6">Member ID</th>
-                            <th className="px-6 py-6">Win Tier</th>
+                            <th className="px-6 py-6" >Win Tier</th>
                             <th className="px-6 py-6">Asset Proof</th>
                             <th className="px-6 py-6 text-right">Verification Action</th>
                          </tr>
@@ -325,23 +396,78 @@ const AdminPage: React.FC = () => {
           {activeTab === 'users' && (
             <motion.div 
               key="users"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="py-20 flex flex-col items-center justify-center text-center space-y-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
             >
-               <div className="relative">
-                  <div className="absolute inset-0 bg-rose-500/20 blur-[60px] rounded-full" />
-                  <div className="relative w-32 h-32 rounded-[40px] bg-rose-600/10 border border-rose-500/30 flex items-center justify-center text-rose-500">
-                    <Lock className="w-12 h-12" />
-                  </div>
-               </div>
-               <div className="space-y-4 max-w-sm">
-                  <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">ACCESS DENIED</h2>
-                  <p className="text-[#9b99c4] italic leading-relaxed">
-                    The User Master Directory requires secondary biometric verification. This module is currently locked.
-                  </p>
-                  <GlowButton label="Request Authorization" variant="ghost" className="mt-4" />
-               </div>
+              <GlassCard className="p-0 border-white/5 overflow-hidden">
+                <div className="p-10 border-b border-white/5 bg-white/[0.02] flex justify-between items-end">
+                   <div>
+                      <h3 className="text-xl font-black text-white italic uppercase tracking-tight">MASTER DIRECTORY</h3>
+                      <p className="text-[10px] text-[#4a4870] font-black uppercase tracking-[0.2em] mt-2">Authenticated User Vault Access</p>
+                   </div>
+                   <StatBadge text={`${users.length} TOTAL`} variant="violet" />
+                </div>
+                <div className="overflow-x-auto">
+                   <table className="w-full text-left">
+                      <thead className="text-[10px] uppercase font-black tracking-widest text-[#4a4870] border-b border-white/5">
+                         <tr>
+                            <th className="px-10 py-6">Member Identity</th>
+                            <th className="px-6 py-6">Role</th>
+                            <th className="px-6 py-6">Registered</th>
+                            <th className="px-6 py-6 text-right">System Control</th>
+                         </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                         {users.map((member) => (
+                           <tr key={member.id} className="hover:bg-white/[0.01] transition-colors group">
+                              <td className="px-10 py-7">
+                                 <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-full bg-violet-500/10 flex items-center justify-center font-black text-[10px] text-violet-400 border border-violet-500/20">
+                                      {member.full_name?.[0] || 'U'}
+                                    </div>
+                                    <div>
+                                      <div className="text-sm font-bold text-white group-hover:text-violet-400 transition-colors uppercase italic">{member.full_name || 'Anonymous User'}</div>
+                                      <div className="text-[9px] text-[#4a4870] font-black uppercase tracking-widest">{member.id}</div>
+                                    </div>
+                                 </div>
+                              </td>
+                              <td className="px-6 py-7">
+                                 <span className={cn(
+                                   "inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border",
+                                   member.role === 'admin' ? "bg-red-500/5 border-red-500/20 text-red-400" : "bg-violet-500/5 border-violet-500/20 text-violet-400"
+                                 )}>
+                                    <div className={cn("w-1 h-1 rounded-full", member.role === 'admin' ? "bg-red-500 animate-pulse" : "bg-violet-400")} />
+                                    {member.role}
+                                 </span>
+                              </td>
+                              <td className="px-6 py-7">
+                                 <div className="text-xs font-bold text-[#4a4870] italic">
+                                   {new Date(member.created_at).toLocaleDateString()}
+                                 </div>
+                              </td>
+                              <td className="px-6 py-7 text-right">
+                                 <div className="flex items-center justify-end gap-3">
+                                    <button 
+                                      onClick={() => toast.info('Log Access', 'Auditing interaction history...')}
+                                      className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-[#4a4870] hover:text-white transition-all shadow-inner"
+                                    >
+                                       <Database className="w-4 h-4" />
+                                    </button>
+                                    <button 
+                                      onClick={() => deleteUser(member.id)}
+                                      className="p-2.5 bg-rose-500/5 text-rose-500 border border-rose-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500 hover:text-black"
+                                    >
+                                       <ShieldAlert className="w-4 h-4" />
+                                    </button>
+                                 </div>
+                              </td>
+                           </tr>
+                         ))}
+                      </tbody>
+                   </table>
+                </div>
+              </GlassCard>
             </motion.div>
           )}
         </AnimatePresence>

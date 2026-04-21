@@ -5,49 +5,86 @@ import { GlassCard } from '../components/ui/GlassCard';
 import { StatBadge } from '../components/ui/StatBadge';
 import { GlowButton } from '../components/ui/GlowButton';
 import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+import { toast } from '../hooks/useToast';
+import { useNavigate } from 'react-router-dom';
+
+const plans = [
+  {
+    id: 'monthly',
+    name: 'Monthly Elite',
+    price: '29',
+    period: 'mo',
+    description: 'Perfect for consistent players looking for recurring jackpot opportunities.',
+    features: [
+      'Automatic Draw Entry',
+      'Charity Contribution (5%)',
+      'Advanced Score Analytics',
+      'Private Member Lounge Access',
+      'Exclusive Partner Discounts'
+    ],
+    buttonText: 'BEGIN EXCELLENCE',
+    highlight: false
+  },
+  {
+    id: 'yearly',
+    name: 'Annual Legend',
+    price: '299',
+    period: 'yr',
+    description: 'The ultimate commitment to the game and the cause. Two months free.',
+    features: [
+      '2 Months Free Included',
+      'Automatic Draw Entry',
+      'Charity Contribution (10%)',
+      'Full Score Intelligence Suit',
+      'VIP Event Invitations',
+      'Global Leaderboard Badge'
+    ],
+    buttonText: 'CLAIM LEGACY',
+    highlight: true
+  }
+];
 
 const PricingPage: React.FC = () => {
-  const plans = [
-    {
-      id: 'monthly',
-      name: 'Monthly Elite',
-      price: '15',
-      period: 'month',
-      description: 'Perfect for regular players looking to enter the monthly draw.',
-      features: [
-        'Rolling 5 Score Tracking',
-        '1x Monthly Draw Entry',
-        'Charity Selection Access',
-        'Member Dashboard',
-        'Digital Proof Collection'
-      ],
-      buttonText: 'Join the Club',
-      highlight: false,
-      accent: 'bg-white/5'
-    },
-    {
-      id: 'yearly',
-      name: 'Annual Legend',
-      price: '150',
-      period: 'year',
-      description: 'The ultimate commitment. Save £30 and never miss a leaderboard update.',
-      features: [
-        'All Monthly Features',
-        '2 Months Free Included',
-        'Priority Verification Review',
-        'Annual Impact Statement',
-        'Exclusive Member Badge',
-        'Founder Circle Access'
-      ],
-      buttonText: 'Claim Your Rank',
-      highlight: true,
-      accent: 'bg-violet-600/10'
-    }
-  ];
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [isProcessing, setIsProcessing] = React.useState<string | null>(null);
 
-  const handleSubscribe = async (plan: string) => {
-    console.log('Subscribing to:', plan);
-    // Placeholder for Stripe logic
+  const handleSubscribe = async (planId: string) => {
+    if (!user) {
+      toast.error('Identity Required', 'Please create an account or login to initialize a subscription.');
+      navigate('/signup');
+      return;
+    }
+
+    setIsProcessing(planId);
+    
+    // Simulate Stripe Checkout Redirect
+    toast.info('Initializing Stripe Checkout...', 'Connecting to secure payment gateway...');
+    
+    setTimeout(async () => {
+      try {
+        // Prepare for real Stripe: 
+        // 1. Call backend to create checkout session
+        // 2. Redirect to stripe.com
+        
+        // For now, simulate success: 
+        const { error } = await supabase
+          .from('profiles')
+          .update({ role: 'subscriber' })
+          .eq('id', user.id);
+
+        if (error) throw error;
+
+        toast.success('Subscription Activated', `Welcome to the ${planId === 'yearly' ? 'Annual Legend' : 'Monthly Elite'} circle!`);
+        setIsProcessing(null);
+        navigate('/dashboard');
+      } catch (err) {
+        toast.error('Payment Error', 'Failed to synchronize subscription state.');
+        setIsProcessing(null);
+      }
+    }, 2000);
   };
 
   return (
@@ -130,10 +167,11 @@ const PricingPage: React.FC = () => {
 
               <div className="space-y-6 pt-10">
                 <GlowButton 
-                  label={plan.buttonText} 
+                  label={isProcessing === plan.id ? "Securing..." : plan.buttonText} 
                   className="w-full py-5 text-sm" 
                   variant={plan.highlight ? 'primary' : 'ghost'} 
                   onClick={() => handleSubscribe(plan.id)}
+                  disabled={isProcessing !== null}
                 />
                 <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase text-[#4a4870] tracking-[0.2em] group-hover:text-[#9b99c4] transition-colors">
                   <ShieldCheck className="w-4 h-4" /> 256-Bit SSL Encryption

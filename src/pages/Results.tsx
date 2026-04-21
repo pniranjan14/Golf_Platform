@@ -13,23 +13,54 @@ import { GlassCard } from '../components/ui/GlassCard';
 import { StatBadge } from '../components/ui/StatBadge';
 import { GlowButton } from '../components/ui/GlowButton';
 
+import { supabase } from '../lib/supabase';
+import type { Draw } from '../types';
+
 const ResultsPage: React.FC = () => {
-  const latestDraw = {
-    month: 'APRIL 2026',
-    date: 'April 30, 2026',
-    winningScore: '42',
-    winners: 3,
-    prizePool: '£42,500',
-    jackpotEach: '£14,166',
-    participants: 1245
+  const [latestDraw, setLatestDraw] = React.useState<Draw | null>(null);
+  const [pastResults, setPastResults] = React.useState<Draw[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetchResults();
+  }, []);
+
+  const fetchResults = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('draws')
+        .select('*')
+        .order('draw_date', { ascending: false });
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setLatestDraw(data[0]);
+        setPastResults(data.slice(1));
+      }
+    } catch (err) {
+      console.error('Error fetching results:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const pastResults = [
-    { month: 'March 2026', score: '38', winners: 12, pool: '£38,200', charity: '£3,820' },
-    { month: 'February 2026', score: '44', winners: 1, pool: '£45,000', charity: '£4,500' },
-    { month: 'January 2026', score: '40', winners: 5, pool: '£40,100', charity: '£4,010' },
-    { month: 'December 2025', score: '39', winners: 8, pool: '£52,000', charity: '£5,200' },
-  ];
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-violet-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  // Fallback if no draws published yet
+  const displayDraw = latestDraw || {
+    month: 'PENDING',
+    draw_date: new Date().toISOString(),
+    winning_score: 0,
+    winners_count: 0,
+    total_prize_pool: '£0',
+    participants_count: 0
+  };
 
 
 
@@ -68,7 +99,7 @@ const ResultsPage: React.FC = () => {
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20" />
                 <div className="relative z-10">
                   <StatBadge text="OFFICIAL RESULT" variant="violet" className="bg-white/20 border-white/30 text-white" />
-                  <h2 className="text-white font-black text-3xl mt-6 italic tracking-tighter leading-none">{latestDraw.month}</h2>
+                  <h2 className="text-white font-black text-3xl mt-6 italic tracking-tighter leading-none">{displayDraw.month}</h2>
                 </div>
                 
                 <div className="relative z-10 text-center py-12">
@@ -78,26 +109,26 @@ const ResultsPage: React.FC = () => {
                     transition={{ type: 'spring', delay: 0.3 }}
                     className="text-[12rem] font-black text-white leading-none tracking-tighter drop-shadow-[0_0_50px_rgba(255,255,255,0.3)] tabular-nums"
                   >
-                    {latestDraw.winningScore}
+                    {displayDraw.winning_score}
                   </motion.div>
                   <p className="text-white/60 font-black uppercase tracking-[0.3em] text-sm mt-4">Winning Stableford Score</p>
                 </div>
                 
                 <div className="relative z-10 flex items-center gap-4 text-white/80 font-bold text-xs border-t border-white/10 pt-8">
-                   <Calendar className="w-4 h-4" /> Draw finalized on {latestDraw.date}
+                   <Calendar className="w-4 h-4" /> Draw finalized on {new Date(displayDraw.draw_date).toLocaleDateString()}
                 </div>
               </div>
 
               {/* Right Side: Stats */}
               <div className="lg:col-span-3 p-12 space-y-12 bg-[#0a0a0f]">
-                <div className="grid grid-cols-2 gap-8">
+                 <div className="grid grid-cols-2 gap-8">
                   <div>
                     <div className="text-[10px] font-black text-[#4a4870] uppercase tracking-widest mb-2">Total Prize Pool</div>
-                    <div className="text-4xl font-black text-white italic tracking-tight">{latestDraw.prizePool}</div>
+                    <div className="text-4xl font-black text-white italic tracking-tight">{displayDraw.total_prize_pool}</div>
                   </div>
                   <div>
                     <div className="text-[10px] font-black text-[#4a4870] uppercase tracking-widest mb-2">Winners Sharing</div>
-                    <div className="text-4xl font-black text-white italic tracking-tight">{latestDraw.winners} Members</div>
+                    <div className="text-4xl font-black text-white italic tracking-tight">{displayDraw.winners_count} Members</div>
                   </div>
                 </div>
 
@@ -105,8 +136,8 @@ const ResultsPage: React.FC = () => {
                   <div className="absolute top-0 right-0 p-6">
                     <Trophy className="w-12 h-12 text-violet-500/10 group-hover:scale-110 transition-transform duration-500" />
                   </div>
-                  <div className="text-[10px] font-black text-violet-400 uppercase tracking-widest mb-2">Winnings Per Share</div>
-                  <div className="text-5xl font-black text-white tracking-tighter italic">{latestDraw.jackpotEach}</div>
+                  <div className="text-[10px] font-black text-violet-400 uppercase tracking-widest mb-2">Platform Impact</div>
+                  <div className="text-5xl font-black text-white tracking-tighter italic">LIVE RESULTS</div>
                   <div className="mt-6 flex items-center gap-2 text-emerald-400 font-bold text-[10px] uppercase tracking-widest">
                     <CheckCircle2 className="w-4 h-4" /> Disbursed to member wallets
                   </div>
@@ -119,7 +150,7 @@ const ResultsPage: React.FC = () => {
                       </div>
                       <div>
                         <div className="text-[10px] font-black text-[#4a4870] uppercase tracking-widest">Total Participants</div>
-                        <div className="text-white font-black">{latestDraw.participants} Members</div>
+                        <div className="text-white font-black">{displayDraw.participants_count} Members</div>
                       </div>
                   </div>
                   <div className="flex items-center gap-4">
@@ -169,22 +200,22 @@ const ResultsPage: React.FC = () => {
                    <th className="px-8 py-4"></th>
                  </tr>
                </thead>
-               <tbody className="divide-y divide-white/5">
-                 {pastResults.map((row) => (
-                   <tr key={row.month} className="hover:bg-white/[0.02] transition-colors group">
-                     <td className="px-8 py-4 text-xs font-black text-white italic uppercase">{row.month}</td>
-                     <td className="px-8 py-4 text-xs text-violet-400 font-black tabular-nums">{row.score}</td>
-                     <td className="px-8 py-4 text-xs text-[#9b99c4] font-medium">{row.winners}</td>
-                     <td className="px-8 py-4 text-xs text-white font-black">{row.pool}</td>
-                     <td className="px-8 py-4 text-xs text-emerald-400 font-bold">{row.charity}</td>
-                     <td className="px-8 py-4 text-right">
-                        <button className="p-2 text-[#4a4870] hover:text-white transition-colors">
-                          <Download className="w-4 h-4" />
-                        </button>
-                     </td>
-                   </tr>
-                 ))}
-               </tbody>
+                <tbody className="divide-y divide-white/5">
+                  {pastResults.map((row) => (
+                    <tr key={row.id} className="hover:bg-white/[0.02] transition-colors group">
+                      <td className="px-8 py-4 text-xs font-black text-white italic uppercase">{row.month}</td>
+                      <td className="px-8 py-4 text-xs text-violet-400 font-black tabular-nums">{row.winning_score}</td>
+                      <td className="px-8 py-4 text-xs text-[#9b99c4] font-medium">{row.winners_count}</td>
+                      <td className="px-8 py-4 text-xs text-white font-black">{row.total_prize_pool}</td>
+                      <td className="px-8 py-4 text-xs text-emerald-400 font-bold">VERIFIED</td>
+                      <td className="px-8 py-4 text-right">
+                         <button className="p-2 text-[#4a4870] hover:text-white transition-colors">
+                           <Download className="w-4 h-4" />
+                         </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
              </table>
            </div>
         </GlassCard>

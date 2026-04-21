@@ -17,85 +17,80 @@ serve(async (req) => {
   )
 
   try {
-    const { action, drawType, drawMonth, drawYear } = await req.json()
+    const { action, month, year } = await req.json()
 
     if (action === 'simulate' || action === 'publish') {
-      // 1. Get all active scores and total pool settings
-      const { data: scores } = await supabase.from('scores').select('score, user_id')
-      if (!scores || scores.length === 0) throw new Error('No active scores found')
+      // 1. Fetch all scores for the target period
+      const { data: scores, error: scoresError } = await supabase
+        .from('scores')
+        .select('*')
+      
+      if (scoresError) throw scoresError
+      if (!scores || scores.length === 0) throw new Error('No active scores found to process.')
 
-      // 2. Generate Winning Numbers (same logic as before, refactored for reuse)
-      let winningNumbers: number[] = []
-      // ... generation logic ...
-      while (winningNumbers.length < 5) {
-        const n = Math.floor(Math.random() * 45) + 1
-        if (!winningNumbers.includes(n)) winningNumbers.push(n)
+      // 2. Filter scores for the target month/year
+      const targetMonthStr = month.toUpperCase()
+      const eligibleScores = scores.filter(s => {
+        const d = new Date(s.score_date)
+        const m = d.toLocaleString('default', { month: 'long' }).toUpperCase()
+        const y = d.getFullYear().toString()
+        return m === targetMonthStr && y === year.toString()
+      })
+
+      if (eligibleScores.length === 0) throw new Error(`No verified scores found for ${targetMonthStr} ${year}.`)
+
+      // 3. Generate Winning Score (The "Target" score for the draw)
+      // Logic: Pick a score in the realistic gold range (65-75)
+      const winningScore = Math.floor(Math.random() * 11) + 65
+
+      // 4. Identify Winners
+      const matchingWinners = eligibleScores.filter(s => s.score === winningScore)
+      const winnersCount = matchingWinners.length
+      const uniqueParticipants = new Set(eligibleScores.map(s => s.user_id)).size
+
+      // 5. Calculate Prize Pool (Simulated for this tool, usually would come from sub totals)
+      const estimatedPrizePool = 42500.00
+      
+      const result = {
+        month: targetMonthStr,
+        year,
+        winningScore,
+        winnersCount,
+        participantsCount: uniqueParticipants,
+        totalPrizePool: estimatedPrizePool,
+        winners: matchingWinners.map(w => ({ user_id: w.user_id, score: w.score }))
       }
-
-      // 3. Find Winners
-      const winners = { match5: [] as string[], match4: [] as string[], match3: [] as string[] }
-      const userScores: Record<string, number[]> = {}
-      scores.forEach(s => {
-        if (!userScores[s.user_id]) userScores[s.user_id] = []
-        userScores[s.user_id].push(s.score)
-      })
-      Object.entries(userScores).forEach(([userId, uScores]) => {
-        const matches = uScores.filter(s => winningNumbers.includes(s)).length
-        if (matches === 5) winners.match5.push(userId)
-        else if (matches === 4) winners.match4.push(userId)
-        else if (matches === 3) winners.match3.push(userId)
-      })
 
       if (action === 'simulate') {
-        return new Response(JSON.stringify({ winningNumbers, winners }), { headers: corsHeaders })
+        return new Response(JSON.stringify(result), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+          status: 200 
+        })
       }
 
-      // 4. ACTION: PUBLISH (Persist results & calculate prizes)
-      const { data: poolInfo } = await supabase.from('draw_prizes_config').select('*').single()
-      const totalPool = poolInfo?.current_pool || 0
-      const rollover = poolInfo?.jackpot_rollover || 0
-
-      const prizeStructure = {
-        match5: (totalPool * 0.40) + rollover,
-        match4: totalPool * 0.35,
-        match3: totalPool * 0.25
-      }
-
-      // Create Draw Entry
+      // 6. Action: PUBLISH
       const { data: drawRecord, error: drawError } = await supabase.from('draws').insert({
-        draw_month: drawMonth,
-        draw_year: drawYear,
-        winning_numbers: winningNumbers,
-        status: 'published',
-        published_at: new Date().toISOString()
+        month: targetMonthStr,
+        draw_date: new Date().toISOString(),
+        winning_score: winningScore,
+        winners_count: winnersCount,
+        total_prize_pool: estimatedPrizePool,
+        participants_count: uniqueParticipants,
+        status: 'published'
       }).select().single()
 
       if (drawError) throw drawError
 
-      // Record Winners
-      const winnerEntries = [
-        ...winners.match5.map(uid => ({ draw_id: drawRecord.id, user_id: uid, match_type: 5, prize_amount: prizeStructure.match5 / winners.match5.length })),
-        ...winners.match4.map(uid => ({ draw_id: drawRecord.id, user_id: uid, match_type: 4, prize_amount: prizeStructure.match4 / winners.match4.length })),
-        ...winners.match3.map(uid => ({ draw_id: drawRecord.id, user_id: uid, match_type: 3, prize_amount: prizeStructure.match3 / winners.match3.length })),
-      ]
-
-      if (winnerEntries.length > 0) {
-        await supabase.from('draw_winners').insert(winnerEntries)
-      }
-
-      // Update Rollover if no Match 5 winner
-      if (winners.match5.length === 0) {
-        await supabase.from('draw_prizes_config').update({ 
-          jackpot_rollover: prizeStructure.match5 
-        }).eq('id', poolInfo.id)
-      } else {
-        await supabase.from('draw_prizes_config').update({ jackpot_rollover: 0 }).eq('id', poolInfo.id)
-      }
-
-      return new Response(JSON.stringify({ success: true, drawId: drawRecord.id }), { headers: corsHeaders })
+      return new Response(JSON.stringify({ success: true, drawId: drawRecord.id, result }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+        status: 200 
+      })
     }
 
-    return new Response(JSON.stringify({ error: 'Unsupported action' }), { status: 400 })
+    return new Response(JSON.stringify({ error: 'Unsupported action request' }), { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+      status: 400 
+    })
   } catch (error) {
     return new Response(
       JSON.stringify({ error: error.message }),

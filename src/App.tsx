@@ -4,6 +4,7 @@ import { AnimatePresence } from 'framer-motion'
 import { Toaster } from './components/ui/Toaster'
 import { Layout } from './components/layout/Layout'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
+import { AdminProtectedRoute } from './components/auth/AdminProtectedRoute'
 
 // Pages
 import LandingPage from './pages/Landing'
@@ -14,6 +15,7 @@ import AdminPage from './pages/Admin'
 import CharitiesPage from './pages/Charities'
 import PricingPage from './pages/Pricing'
 import ResultsPage from './pages/Results'
+import AdminLoginPage from './pages/AdminLogin'
 
 const App: React.FC = () => {
   const location = useLocation();
@@ -31,9 +33,14 @@ const App: React.FC = () => {
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/results" element={<ResultsPage />} />
           
-          {/* Protected Routes */}
+          {/* Protected Member Routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+          </Route>
+
+          {/* Master Admin Routes (Strictly Isolated) */}
+          <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route element={<AdminProtectedRoute />}>
             <Route path="/admin" element={<AdminPage />} />
           </Route>
 

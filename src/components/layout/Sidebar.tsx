@@ -15,7 +15,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../lib/utils';
 
 export const Sidebar: React.FC = () => {
-  const { signOut } = useAuth();
+  const { signOut, isAdmin } = useAuth();
   const location = useLocation();
 
   const menuItems = [
@@ -27,7 +27,7 @@ export const Sidebar: React.FC = () => {
   ];
 
   const adminItems = [
-    { name: 'Admin Overview', icon: LayoutGrid, href: '/admin' },
+    { name: 'Master Terminal', icon: LayoutGrid, href: '/admin' },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -74,27 +74,30 @@ export const Sidebar: React.FC = () => {
           </motion.div>
         ))}
 
-        {/* Admin Section (hardcoded check for now, can be improved) */}
-        <div className="pt-8">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-[#4a4870] font-bold px-4 mb-4">
-            Management
+        {/* Admin Section - Only visible to Master Administrators */}
+        {isAdmin && (
+          <div className="pt-8 animate-pulse-subtle">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-red-500/60 font-bold px-4 mb-4 flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+              Management
+            </div>
+            {adminItems.map((item) => (
+              <Link
+                key={item.name}
+                to={item.href}
+                className={cn(
+                  "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300",
+                  isActive(item.href)
+                    ? "bg-red-500/10 text-red-400 border-l-2 border-red-500"
+                    : "text-[#9b99c4] hover:bg-white/5 hover:text-white"
+                )}
+              >
+                <item.icon className={cn("w-5 h-5", isActive(item.href) ? "text-red-400" : "text-[#4a4870] group-hover:text-white")} />
+                <span className="font-medium">{item.name}</span>
+              </Link>
+            ))}
           </div>
-          {adminItems.map((item) => (
-            <Link
-              key={item.name}
-              to={item.href}
-              className={cn(
-                "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300",
-                isActive(item.href)
-                  ? "bg-violet-500/10 text-violet-400 border-l-2 border-violet-500"
-                  : "text-[#9b99c4] hover:bg-white/5 hover:text-white"
-              )}
-            >
-              <item.icon className={cn("w-5 h-5", isActive(item.href) ? "text-violet-400" : "text-[#4a4870] group-hover:text-white")} />
-              <span className="font-medium">{item.name}</span>
-            </Link>
-          ))}
-        </div>
+        )}
       </nav>
 
       {/* Sidebar Footer */}

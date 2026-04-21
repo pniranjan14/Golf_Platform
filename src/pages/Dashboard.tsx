@@ -17,11 +17,20 @@ import { GlowButton } from '../components/ui/GlowButton';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary';
 import { cn } from '../lib/utils';
 import { toast } from '../hooks/useToast';
-import { useDashboardData } from '../hooks/useDashboardData';
+import { useDashboardData, CHARITY_MAP } from '../hooks/useDashboardData';
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const { profile, currentScoresCount, totalEntries, totalWinnings, loading, refresh } = useDashboardData();
+  const { 
+    profile, 
+    currentScoresCount, 
+    totalEntries, 
+    totalWinnings, 
+    latestDraw,
+    participationHistory,
+    loading, 
+    refresh 
+  } = useDashboardData();
 
   if (loading) {
     return (
@@ -33,6 +42,13 @@ const DashboardPage: React.FC = () => {
       </div>
     );
   }
+
+  // Calculate Impact Stats
+  const subscriberFee = 25.00;
+  const charityPercent = profile?.charity_percent || 0;
+  const monthlyImpact = (subscriberFee * (charityPercent / 100)).toFixed(2);
+  const totalImpact = (totalEntries * (subscriberFee * (charityPercent / 100))).toFixed(2);
+  const selectedCharityName = profile?.charity_id ? CHARITY_MAP[profile.charity_id] || 'Selected Charity' : 'No Charity Selected';
 
   const stats = [
     { 
@@ -61,7 +77,7 @@ const DashboardPage: React.FC = () => {
     },
     { 
       label: 'Total Winnings', 
-      value: totalWinnings > 0 ? `£${totalWinnings}` : '£0', 
+      value: totalWinnings > 0 ? `£${totalWinnings.toFixed(2)}` : '£0.00', 
       icon: CheckCircle2, 
       color: 'bg-rose-500/10 text-rose-400',
       glow: 'shadow-[0_0_20px_rgba(225,29,72,0.2)]',
@@ -163,7 +179,9 @@ const DashboardPage: React.FC = () => {
                   </h2>
                   <p className="text-xs text-[#4a4870] font-bold mt-1 uppercase tracking-widest">Top 5 Recent entries</p>
                 </div>
-                <GlowButton label="Add Score" variant="ghost" className="py-2 px-4 text-xs font-black uppercase" />
+                <div className="flex items-center gap-3">
+                   <StatBadge text={`${currentScoresCount}/5 SLOTS`} variant={currentScoresCount === 5 ? 'emerald' : 'violet'} />
+                </div>
               </div>
               <div className="p-2">
                 <ScoreManager onScoreAdded={refresh} />
@@ -175,7 +193,9 @@ const DashboardPage: React.FC = () => {
           <div className="lg:col-span-2 space-y-8">
             <GlassCard className="bg-gradient-to-br from-[#13131f] to-[#0a0a0f] border-violet-500/20">
               <div className="flex items-center justify-between mb-8">
-                <h2 className="text-xl font-black text-white italic">MAY DRAW</h2>
+                <h2 className="text-xl font-black text-white italic uppercase tracking-tighter">
+                  {latestDraw?.month || 'CURRENT'} DRAW
+                </h2>
                 <StatBadge text="ACTIVE" variant="violet" />
               </div>
 
@@ -203,29 +223,35 @@ const DashboardPage: React.FC = () => {
                       <Trophy className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <div className="text-xs text-white font-bold">Estimated Jackpot</div>
-                      <div className="text-2xl font-black text-violet-400 tracking-tighter">£42,500.00</div>
+                      <div className="text-xs text-white font-bold italic">Estimated Jackpot</div>
+                      <div className="text-2xl font-black text-violet-400 tracking-tighter tabular-nums">
+                        {latestDraw?.total_prize_pool || '£42,500.00'}
+                      </div>
                     </div>
                   </div>
                   <div className="flex justify-between items-center text-[10px] text-[#4a4870] font-black uppercase">
                     <span>Your Win Probability</span>
-                    <span className="text-violet-400">1 in 452</span>
+                    <span className="text-violet-400">1 in {latestDraw?.participants_count ? (latestDraw.participants_count / currentScoresCount).toFixed(0) : '452'}</span>
                   </div>
                 </div>
               </div>
             </GlassCard>
 
-            <GlassCard className="relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4">
-                <Heart className="w-12 h-12 text-rose-500/10 group-hover:scale-110 transition-transform duration-500" />
+            <GlassCard className="relative overflow-hidden group border-white/5 bg-[#0a0a0f]">
+              <div className="absolute top-0 right-0 p-4 opacity-20">
+                <Heart className="w-16 h-16 text-rose-500 group-hover:scale-110 transition-transform duration-500" />
               </div>
-              <h3 className="text-sm font-bold text-[#4a4870] uppercase tracking-widest mb-4">Impact Report</h3>
-              <div className="text-2xl font-black text-white mb-2 italic">£2,450.00</div>
-              <p className="text-xs text-[#9b99c4] leading-relaxed">
-                Total contribution from you and your referred members to <span className="text-rose-400 font-bold">Cancer Research UK</span>.
+              <h3 className="text-sm font-bold text-[#4a4870] uppercase tracking-widest mb-4 italic">Impact Report</h3>
+              <div className="flex items-baseline gap-2 mb-2">
+                <div className="text-3xl font-black text-white italic tracking-tighter tabular-nums">£{monthlyImpact}</div>
+                <div className="text-[10px] text-[#4a4870] font-bold uppercase">/ Round</div>
+              </div>
+              <p className="text-[11px] text-[#9b99c4] leading-relaxed font-medium">
+                Total contribution of <span className="text-white font-bold tabular-nums">£{totalImpact}</span> generated for <br />
+                <span className="text-rose-400 font-black uppercase tracking-tight">{selectedCharityName}</span>.
               </p>
-              <div className="mt-6 flex items-center gap-2 text-emerald-400 font-bold text-[10px] uppercase">
-                <Clock className="w-3 h-3" /> Updated 2m ago
+              <div className="mt-6 flex items-center gap-2 text-emerald-400/60 font-black text-[9px] uppercase tracking-[0.2em]">
+                <Clock className="w-3 h-3" /> Real-time tracking active
               </div>
             </GlassCard>
           </div>
@@ -233,51 +259,61 @@ const DashboardPage: React.FC = () => {
       </ErrorBoundary>
 
       {/* BOTTOM ROW: PARTICIPATION HISTORY */}
-      <GlassCard className="p-0 border-white/5 overflow-hidden">
-        <div className="p-8 border-b border-white/5 bg-white/[0.01]">
-          <h2 className="text-xl font-bold text-white italic">PARTICIPATION HISTORY</h2>
+      <GlassCard className="p-0 border-white/5 overflow-hidden bg-[#0a0a0f]">
+        <div className="p-8 border-b border-white/5 bg-white/[0.01] flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white italic uppercase tracking-tight">PARTICIPATION HISTORY</h2>
+          <div className="text-[10px] text-[#4a4870] font-black uppercase tracking-widest">Lifetime Audit Log</div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-white/5">
-                <th className="px-8 py-4 text-[10px] uppercase font-black tracking-widest text-[#4a4870]">Month</th>
-                <th className="px-8 py-4 text-[10px] uppercase font-black tracking-widest text-[#4a4870]">Scores Entered</th>
-                <th className="px-8 py-4 text-[10px] uppercase font-black tracking-widest text-[#4a4870]">Match Type</th>
-                <th className="px-8 py-4 text-[10px] uppercase font-black tracking-widest text-[#4a4870]">Prize</th>
-                <th className="px-8 py-4 text-[10px] uppercase font-black tracking-widest text-[#4a4870]">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {[
-                { month: 'April 2026', scores: '5/5', match: '3-Match', prize: '£12.50', status: 'Won', color: 'text-emerald-400' },
-                { month: 'March 2026', scores: '5/5', match: 'No Match', prize: '-', status: 'No Match', color: 'text-[#4a4870]' },
-                { month: 'February 2026', scores: '4/5', match: 'Upcoming', prize: 'TBD', status: 'Pending', color: 'text-amber-400' },
-              ].map((row, i) => (
-                <motion.tr 
-                  key={row.month}
-                  initial={{ opacity: 0, x: -10 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  className="hover:bg-white/[0.02] transition-colors group"
-                >
-                  <td className="px-8 py-5 text-sm font-bold text-white group-hover:text-violet-400 transition-colors uppercase tracking-tight">{row.month}</td>
-                  <td className="px-8 py-5 text-sm text-[#9b99c4] tabular-nums">{row.scores}</td>
-                  <td className="px-8 py-5 text-sm text-[#9b99c4] uppercase font-medium">{row.match}</td>
-                  <td className="px-8 py-5 text-sm font-black text-white">{row.prize}</td>
-                  <td className="px-8 py-5">
-                    <span className={cn("text-[10px] font-black uppercase px-2 py-1 rounded border", 
-                      row.status === 'Won' ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400" :
-                      row.status === 'Pending' ? "border-amber-500/20 bg-amber-500/10 text-amber-400" :
-                      "border-white/10 bg-white/5 text-[#4a4870]"
-                    )}>
-                      {row.status}
-                    </span>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
+          {participationHistory.length > 0 ? (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-white/5">
+                  <th className="px-8 py-4 text-[10px] uppercase font-black tracking-widest text-[#4a4870]">Month</th>
+                  <th className="px-8 py-4 text-[10px] uppercase font-black tracking-widest text-[#4a4870]">Scores Entered</th>
+                  <th className="px-8 py-4 text-[10px] uppercase font-black tracking-widest text-[#4a4870]">Match Status</th>
+                  <th className="px-8 py-4 text-[10px] uppercase font-black tracking-widest text-[#4a4870]">Winnings</th>
+                  <th className="px-8 py-4 text-[10px] uppercase font-black tracking-widest text-[#4a4870]">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {participationHistory.map((row, i) => (
+                  <motion.tr 
+                    key={row.month}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    className="hover:bg-white/[0.02] transition-colors group"
+                  >
+                    <td className="px-8 py-5 text-sm font-bold text-white group-hover:text-violet-400 transition-colors uppercase tracking-tight italic">{row.month}</td>
+                    <td className="px-8 py-5 text-sm text-[#9b99c4] tabular-nums font-medium">{row.scores}</td>
+                    <td className="px-8 py-5">
+                      <span className={cn(
+                        "text-[10px] font-black uppercase tracking-wider",
+                        row.match === 'Match Found' ? "text-emerald-400" : "text-[#4a4870]"
+                      )}>
+                        {row.match}
+                      </span>
+                    </td>
+                    <td className="px-8 py-5 text-sm font-black text-white tabular-nums">{row.prize}</td>
+                    <td className="px-8 py-5">
+                      <span className={cn("text-[9px] font-black uppercase px-2.5 py-1 rounded-lg border tracking-widest", 
+                        row.status === 'Won' ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]" :
+                        "border-white/10 bg-white/5 text-[#4a4870]"
+                      )}>
+                        {row.status}
+                      </span>
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="py-20 text-center space-y-4">
+               <div className="text-[#4a4870] font-black uppercase tracking-[0.3em] text-xs">No Draw History Detected</div>
+               <p className="text-[11px] text-[#4a4870] italic">Add scores and wait for the monthly draw to begin your legacy.</p>
+            </div>
+          )}
         </div>
       </GlassCard>
     </div>

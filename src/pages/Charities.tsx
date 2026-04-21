@@ -5,11 +5,16 @@ import { GlassCard } from '../components/ui/GlassCard';
 import { StatBadge } from '../components/ui/StatBadge';
 import { GlowButton } from '../components/ui/GlowButton';
 import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+import { toast } from '../hooks/useToast';
 
 const CharitiesPage: React.FC = () => {
+  const { profile, user } = useAuth();
+  
   const charities = [
     {
-      id: 1,
+      id: 'char_1',
       name: "Green Fairways Foundation",
       category: "Environment",
       description: "Dedicated to preserving natural ecosystems on golf courses and surrounding wildlife habitats.",
@@ -19,7 +24,7 @@ const CharitiesPage: React.FC = () => {
       bg: "bg-emerald-500/10"
     },
     {
-      id: 2,
+      id: 'char_2',
       name: "Junior Golfers Initiative",
       category: "Education",
       description: "Providing equipment and professional coaching to underprivileged youth to grow the game.",
@@ -29,7 +34,7 @@ const CharitiesPage: React.FC = () => {
       bg: "bg-blue-500/10"
     },
     {
-      id: 3,
+      id: 'char_3',
       name: "Veterans Golf Retreat",
       category: "Mental Health",
       description: "Using the therapeutic benefits of golf to support veteran rehabilitation and community.",
@@ -39,7 +44,7 @@ const CharitiesPage: React.FC = () => {
       bg: "bg-rose-500/10"
     },
     {
-      id: 4,
+      id: 'char_4',
       name: "Cancer Research UK",
       category: "Health",
       description: "Pioneering research to beat cancer for everyone, funded by the pride of our community.",
@@ -49,7 +54,7 @@ const CharitiesPage: React.FC = () => {
       bg: "bg-rose-500/10"
     },
     {
-      id: 5,
+      id: 'char_5',
       name: "Ocean Clean Up",
       category: "Sustainability",
       description: "Removing plastic waste from coastal areas near seaside golf resorts globally.",
@@ -59,7 +64,7 @@ const CharitiesPage: React.FC = () => {
       bg: "bg-cyan-500/10"
     },
     {
-      id: 6,
+      id: 'char_6',
       name: "Blind Golf Association",
       category: "Inclusion",
       description: "Making golf accessible for the visually impaired through specialized training.",
@@ -81,6 +86,26 @@ const CharitiesPage: React.FC = () => {
   const item = {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0 }
+  };
+
+  const selectCharity = async (charityId: string, charityName: string) => {
+    if (!user) {
+      toast.error('Authentication Required', 'Please log in to commit to a charity.');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ charity_id: charityId })
+        .eq('id', user.id);
+
+      if (error) throw error;
+      toast.success('Commitment Confirmed', `You are now supporting ${charityName}.`);
+      window.location.reload(); // Refresh to update context
+    } catch (err) {
+      toast.error('Sync Error', 'Failed to update your charity preference.');
+    }
   };
 
   return (
@@ -199,9 +224,25 @@ const CharitiesPage: React.FC = () => {
                       <div className="text-[9px] font-black uppercase text-[#4a4870] tracking-widest mb-1">Impact Delivered</div>
                       <div className={cn("text-lg font-black italic", charity.accent)}>{charity.impact}</div>
                     </div>
-                    <button className="p-4 bg-white/5 rounded-2xl text-white hover:bg-emerald-500 hover:text-black transition-all duration-300">
-                      <ExternalLink className="w-5 h-5" />
-                    </button>
+                    <div className="flex gap-2">
+                      <button 
+                         onClick={() => window.open('https://www.cancerresearchuk.org', '_blank')}
+                         className="p-4 bg-white/5 rounded-2xl text-[#4a4870] hover:text-white transition-all duration-300"
+                      >
+                        <ExternalLink className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={() => selectCharity(charity.id, charity.name)}
+                        className={cn(
+                          "px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all duration-300",
+                          profile?.charity_id === charity.id 
+                            ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" 
+                            : "bg-white/5 text-white hover:bg-emerald-500 hover:text-black"
+                        )}
+                      >
+                        {profile?.charity_id === charity.id ? 'COMMITTED' : 'SELECT CAUSE'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </GlassCard>

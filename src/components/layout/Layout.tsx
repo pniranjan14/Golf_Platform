@@ -5,7 +5,12 @@ import { Sidebar } from './Sidebar';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
+  const isAdminLogin = location.pathname === '/admin/login';
   const isDashboard = location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/admin');
+
+  if (isAdminLogin) {
+    return <>{children}</>;
+  }
 
   if (isDashboard) {
     return (

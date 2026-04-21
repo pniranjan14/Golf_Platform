@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import type { Profile } from '../types';
+import type { Profile, Draw } from '../types';
 
-export interface DashboardStats {
-  profile: Profile | null;
-  currentScoresCount: number;
-  totalEntries: number;
-  totalWinnings: number;
-  loading: boolean;
-  refresh: () => Promise<void>;
-}
+export const CHARITY_MAP: Record<string, string> = {
+  'char_1': 'Green Fairways Foundation',
+  'char_2': 'Junior Golfers Initiative',
+  'char_3': 'Veterans Golf Retreat',
+  'char_4': 'Cancer Research UK',
+  'char_5': 'Ocean Clean Up',
+  'char_6': 'Blind Golf Association'
+};
 
 export const useDashboardData = () => {
   const { user } = useAuth();
@@ -18,6 +18,8 @@ export const useDashboardData = () => {
   const [currentScoresCount, setCurrentScoresCount] = useState(0);
   const [totalEntries, setTotalEntries] = useState(0);
   const [totalWinnings, setTotalWinnings] = useState(0);
+  const [latestDraw, setLatestDraw] = useState<Draw | null>(null);
+  const [participationHistory, setParticipationHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -36,33 +38,76 @@ export const useDashboardData = () => {
         setProfile(profileData);
       }
 
-      // 2. Fetch Scores for current month (count)
-      const now = new Date();
-      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      
-      const { count: currentCount, error: countError } = await supabase
+      // 2. Fetch Latest Draw
+      const { data: drawsData, error: drawsError } = await supabase
+        .from('draws')
+        .select('*')
+        .order('draw_date', { ascending: false })
+        .limit(5);
+
+      if (!drawsError && drawsData && drawsData.length > 0) {
+        setLatestDraw(drawsData[0]);
+      }
+
+      // 3. Fetch User Scores
+      const { data: scoresData, error: scoresError } = await supabase
         .from('scores')
-        .select('*', { count: 'exact', head: true })
+        .select('*')
         .eq('user_id', user.id)
-        .gte('score_date', firstDay);
+        .order('score_date', { ascending: false });
 
-      if (!countError) {
-        setCurrentScoresCount(currentCount || 0);
+      if (!scoresError && scoresData) {
+        const scores = scoresData || [];
+        setTotalEntries(scores.length);
+        
+        // Count scores for current month
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const currentMonthScores = scores.filter(s => new Date(s.score_date) >= startOfMonth);
+        setCurrentScoresCount(Math.min(5, currentMonthScores.length));
+
+        // 4. Calculate Winnings & Participation History
+        // We match scores with draws by month
+        const history: any[] = [];
+        let winnings = 0;
+
+        if (drawsData) {
+          drawsData.forEach(draw => {
+            const drawDate = new Date(draw.draw_date);
+            const monthLabel = draw.month || formatMonth(drawDate);
+            
+            // Find user scores for that month/year
+            const monthScores = scores.filter(s => {
+              const sDate = new Date(s.score_date);
+              return sDate.getMonth() === drawDate.getMonth() && sDate.getFullYear() === drawDate.getFullYear();
+            });
+
+            if (monthScores.length > 0) {
+              const hasWin = monthScores.some(s => s.score === draw.winning_score);
+              const prize = hasWin ? draw.total_prize_pool : '-';
+              
+              if (hasWin) {
+                // Simplified winnings calculation: just use the prize pool string/value
+                const prizeVal = typeof draw.total_prize_pool === 'string' 
+                  ? parseFloat(draw.total_prize_pool.replace(/[^0-9.]/g, '')) 
+                  : draw.total_prize_pool;
+                winnings += prizeVal || 0;
+              }
+
+              history.push({
+                month: monthLabel,
+                scores: `${monthScores.length}/5`,
+                match: hasWin ? 'Match Found' : 'No Match',
+                prize: hasWin ? `£${prize}` : '-',
+                status: hasWin ? 'Won' : 'Completed'
+              });
+            }
+          });
+        }
+        
+        setParticipationHistory(history);
+        setTotalWinnings(winnings);
       }
-
-      // 3. Fetch Total Entries (lifetime)
-      const { count: lifetimeCount, error: lifetimeError } = await supabase
-        .from('scores')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      if (!lifetimeError) {
-        setTotalEntries(lifetimeCount || 0);
-      }
-
-      // 4. Fetch Winnings (Placeholder for now as no winnings table exists)
-      // If you eventually create a 'winnings' table, fetch it here.
-      setTotalWinnings(0);
 
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
@@ -70,6 +115,10 @@ export const useDashboardData = () => {
       setLoading(false);
     }
   }, [user]);
+
+  const formatMonth = (date: Date) => {
+    return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+  };
 
   useEffect(() => {
     fetchData();
@@ -80,6 +129,8 @@ export const useDashboardData = () => {
     currentScoresCount,
     totalEntries,
     totalWinnings,
+    latestDraw,
+    participationHistory,
     loading,
     refresh: fetchData
   };
