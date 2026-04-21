@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   Clock,
   Terminal,
-  ShieldAlert
+  ShieldAlert,
+  Fingerprint
 } from 'lucide-react';
 import { GlassCard } from '../components/ui/GlassCard';
 import { StatBadge } from '../components/ui/StatBadge';
