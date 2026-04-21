@@ -60,6 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(currentUser)
 
       if (currentUser) {
+        setLoading(true) // Ensure we are loading while fetching profile
         const prof = await fetchProfile(currentUser.id)
         if (mounted) setProfile(prof)
       } else {

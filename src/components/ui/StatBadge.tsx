@@ -3,7 +3,7 @@ import { cn } from '../../lib/utils';
 
 interface StatBadgeProps {
   text: string;
-  variant?: 'emerald' | 'violet' | 'amber' | 'rose';
+  variant?: 'emerald' | 'violet' | 'amber' | 'rose' | 'red';
   className?: string;
 }
 
@@ -13,6 +13,7 @@ export const StatBadge: React.FC<StatBadgeProps> = ({ text, variant = 'emerald',
     violet: "bg-violet-500/10 border-violet-500/20 text-violet-400 dot-violet-400",
     amber: "bg-amber-500/10 border-amber-500/20 text-amber-400 dot-amber-400",
     rose: "bg-rose-500/10 border-rose-500/20 text-rose-400 dot-rose-400",
+    red: "bg-red-500/10 border-red-500/20 text-red-500 dot-red-500",
   };
 
   return (
@@ -27,6 +28,7 @@ export const StatBadge: React.FC<StatBadgeProps> = ({ text, variant = 'emerald',
         variant === 'violet' && "bg-violet-400",
         variant === 'amber' && "bg-amber-400",
         variant === 'rose' && "bg-rose-400",
+        variant === 'red' && "bg-red-500",
       )} />
       {text}
     </div>

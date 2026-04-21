@@ -4,7 +4,7 @@ import { cn } from '../../lib/utils';
 
 interface GlowButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onDrag' | 'onDragStart' | 'onDragEnd' | 'onAnimationStart'> {
   label: string;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'red';
   className?: string;
 }
 
@@ -12,6 +12,7 @@ export const GlowButton: React.FC<GlowButtonProps> = ({ label, variant = 'primar
   const isPrimary = variant === 'primary';
   const isSecondary = variant === 'secondary';
   const isGhost = variant === 'ghost';
+  const isRed = variant === 'red';
 
   return (
     <motion.button
@@ -21,6 +22,7 @@ export const GlowButton: React.FC<GlowButtonProps> = ({ label, variant = 'primar
         "relative group px-8 py-3.5 rounded-xl font-semibold text-white overflow-hidden transition-all duration-300",
         isPrimary && "bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 shadow-[0_0_30px_rgba(124,58,237,0.4)] hover:shadow-[0_0_50px_rgba(124,58,237,0.6)]",
         isSecondary && "bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 shadow-[0_0_30px_rgba(5,150,105,0.3)] hover:shadow-[0_0_50px_rgba(5,150,105,0.5)]",
+        isRed && "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 shadow-[0_0_30px_rgba(239,68,68,0.3)] hover:shadow-[0_0_50px_rgba(239,68,68,0.5)]",
         isGhost && "border border-white/10 bg-white/5 hover:bg-white/10",
         className
       )}
